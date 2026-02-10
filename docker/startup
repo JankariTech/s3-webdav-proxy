@@ -25,10 +25,15 @@ vendor = $REMOTE_VENDOR
 nextcloud_chunk_size = 0
 EOF
 
+AUTH_PROXY_PATH="${AUTH_PROXY_PATH:-/usr/local/bin/auth-proxy.py}"
+
 # Check if --auth-proxy is part of PROXY_ARGS
 if echo " $PROXY_ARGS " | grep -q ' --auth-proxy '; then
   # Auth-proxy mode for per-user access.
-  # Do not pass the remote name as an argument.
+  # Auto-append AUTH_PROXY_PATH if --auth-proxy has no path
+  if echo " $PROXY_ARGS " | grep -qE ' --auth-proxy$| --auth-proxy --| --auth-proxy -'; then
+    PROXY_ARGS=$(echo "$PROXY_ARGS" | sed "s|--auth-proxy|& $AUTH_PROXY_PATH|")
+  fi
   exec rclone serve s3 $PROXY_ARGS
 else
   # Anonymous or single-user mode.
