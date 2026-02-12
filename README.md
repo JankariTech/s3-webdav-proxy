@@ -177,12 +177,20 @@ import os
 
 def main():
     i = json.load(sys.stdin)
+    url = os.getenv("REMOTE_URL")
+    vendor = os.getenv("REMOTE_VENDOR")
+    if not url:
+        print("REMOTE_URL is not set", file=sys.stderr)
+        sys.exit(1)
+    if not vendor:
+        print("REMOTE_VENDOR is not set", file=sys.stderr)
+        sys.exit(1)
     o = {
         "type": "webdav",
         "_root": "",
         "bearer_token": i["pass"],
-        "url": os.getenv("REMOTE_URL", "https://localhost:9200/remote.php/webdav"),
-        "vendor": os.getenv("REMOTE_VENDOR", "owncloud"),
+        "url": url,
+        "vendor": vendor,
     }
     json.dump(o, sys.stdout, indent="\t")
 
@@ -194,13 +202,13 @@ if __name__ == "__main__":
 
 ### Prerequisites
 
-1. Start OCIS server:
+1. Start OCIS server (ocis binary is used here for demonstration, but you can use your own OCIS setup):
    ```bash
    OCIS_LOG_LEVEL=debug PROXY_ENABLE_BASIC_AUTH=true \
    IDM_CREATE_DEMO_USERS=true OCIS_INSECURE=true ./ocis/bin/ocis server
    ```
 
-2. Get an access token from OCIS web interface
+2. Get an access token from OCIS (Follow [this instruction](https://github.com/jankariTech/rclone?tab=readme-ov-file#3-obtain-a-bearer-token-from-the-webdav-server) to get token or you can just get access token from network tab in browser dev tools when you log in to OCIS web interface)
 
 ### Per-User Access
 
@@ -236,6 +244,9 @@ docker run --rm --network=host \
 mc alias set myproxy http://localhost:8080 "" ""
 mc ls myproxy
 ```
+
+> [!INFORMATION]
+> More details can be found [here](https://github.com/jankariTech/rclone?tab=readme-ov-file#3-obtain-a-bearer-token-from-the-webdav-server)
 
 ## License
 

@@ -10,12 +10,20 @@ import os
 
 def main():
     i = json.load(sys.stdin)
+    url = os.getenv("REMOTE_URL")
+    vendor = os.getenv("REMOTE_VENDOR")
+    if not url:
+        print("REMOTE_URL is not set", file=sys.stderr)
+        sys.exit(1)
+    if not vendor:
+        print("REMOTE_VENDOR is not set", file=sys.stderr)
+        sys.exit(1)
     o = {
-        "type": "webdav",  # type of backend
-        "_root": "",  # root of the fs
+        "type": "webdav",
+        "_root": "",
         "bearer_token": i["pass"],
-        "url": os.getenv("REMOTE_URL", "https://localhost:9200/remote.php/webdav"),
-        "vendor":  os.getenv("REMOTE_VENDOR", "owncloud"),
+        "url": url,
+        "vendor": vendor,
     }
     json.dump(o, sys.stdout, indent="\t")
 

@@ -28,10 +28,10 @@ EOF
 AUTH_PROXY_PATH="${AUTH_PROXY_PATH:-/usr/local/bin/auth-proxy.py}"
 
 # Check if --auth-proxy is part of PROXY_ARGS
-if echo " $PROXY_ARGS " | grep -q ' --auth-proxy '; then
+if echo " $PROXY_ARGS " | grep -q -- '--auth-proxy'; then
   # Auth-proxy mode for per-user access.
-  # Auto-append AUTH_PROXY_PATH if --auth-proxy has no path
-  if echo " $PROXY_ARGS " | grep -qE ' --auth-proxy$| --auth-proxy --| --auth-proxy -'; then
+  # If --auth-proxy has no path after it, use the default AUTH_PROXY_PATH
+  if echo " $PROXY_ARGS " | grep -qE ' --auth-proxy($| )'; then
     PROXY_ARGS=$(echo "$PROXY_ARGS" | sed "s|--auth-proxy|& $AUTH_PROXY_PATH|")
   fi
   exec rclone serve s3 $PROXY_ARGS
