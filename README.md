@@ -16,7 +16,7 @@ A Docker-based proxy that exposes WebDAV storage as an S3-compatible interface u
 ### Build the image
 
 ```bash
-docker build -t jankari/rclone-webdav-proxy .
+docker build -t jankaritech/s3-webdav-proxy .
 ```
 
 ### Run the container
@@ -27,7 +27,7 @@ docker run --rm --network=host \
   -e REMOTE_URL="https://your-webdav-server.com/remote.php/webdav" \
   -e REMOTE_VENDOR=owncloud \
   -e PROXY_ARGS="--auth-proxy --auth-key ,12345678 --no-check-certificate -vv" \
-  jankari/rclone-webdav-proxy
+  jankaritech/s3-webdav-proxy
 ```
 
 The S3-compatible server will be available at `http://localhost:8080`. Access it using an S3 client (e.g., `mc`).
@@ -69,7 +69,7 @@ docker run --rm --network=host \
   -e REMOTE_URL="https://your-server.com/remote.php/webdav" \
   -e REMOTE_VENDOR=owncloud \
   -e PROXY_ARGS="--auth-proxy --auth-key ,12345678 --no-check-certificate" \
-  jankari/rclone-webdav-proxy
+  jankaritech/s3-webdav-proxy
 ```
 
 **2. Configure S3 client (MinIO Client - `mc`):**
@@ -99,7 +99,7 @@ docker run --rm --network=host \
   -e REMOTE_URL="https://your-server.com/dav/public-files/<unique-id>" \
   -e REMOTE_VENDOR=owncloud \
   -e PROXY_ARGS="--no-check-certificate" \
-  jankari/rclone-webdav-proxy
+  jankaritech/s3-webdav-proxy
 ```
 
 **2. Configure S3 client with empty credentials:**
@@ -129,7 +129,7 @@ docker run --rm --network=host \
   -e REMOTE_VENDOR=owncloud \
   -e PROXY_ARGS="--auth-proxy --auth-key ,12345678" \
   -v /path/to/custom-auth-proxy.py:/usr/local/bin/auth-proxy.py \
-  jankari/rclone-webdav-proxy
+  jankaritech/s3-webdav-proxy
 ```
 
 ### Option 2: Environment Variable
@@ -144,7 +144,7 @@ docker run --rm --network=host \
   -e PROXY_ARGS="--auth-proxy --auth-key ,12345678" \
   -e AUTH_PROXY_PATH="/my/custom/script.py" \
   -v /my/custom/script.py:/my/custom/script.py \
-  jankari/rclone-webdav-proxy
+  jankaritech/s3-webdav-proxy
 ```
 
 ### Auth-Proxy Protocol
@@ -210,7 +210,7 @@ docker run --rm --network=host \
   -e REMOTE_URL="https://localhost:9200/remote.php/webdav" \
   -e REMOTE_VENDOR=owncloud \
   -e PROXY_ARGS="--auth-proxy --auth-key ,12345678 --no-check-certificate -vv" \
-  jankari/rclone-webdav-proxy
+  jankaritech/s3-webdav-proxy
 ```
 
 ```bash
@@ -229,7 +229,7 @@ docker run --rm --network=host \
   -e REMOTE_URL="https://localhost:9200/dav/public-files/A1b2C3d4E5f6G7h8I9j0" \
   -e REMOTE_VENDOR=owncloud \
   -e PROXY_ARGS="--no-check-certificate" \
-  jankari/rclone-webdav-proxy
+  jankaritech/s3-webdav-proxy
 ```
 
 ```bash
