@@ -25,6 +25,10 @@ def main():
         "url": url,
         "vendor": vendor,
     }
+    # Disable chunked uploads for Nextcloud to avoid issues with /webdav endpoint
+    # Nextcloud chunked uploads require /dav/files/USER endpoint instead of /webdav
+    if vendor.lower() == "nextcloud":
+        o["nextcloud_chunk_size"] = "0"
     json.dump(o, sys.stdout, indent="\t")
 
 

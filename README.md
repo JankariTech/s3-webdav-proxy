@@ -2,6 +2,8 @@
 
 A Docker-based proxy that exposes WebDAV storage as an S3-compatible interface using [rclone](https://rclone.org/).
 
+💰 [PointCab GmbH](https://pointcab-software.com/) is providing finances for this project.
+
 ## Features
 
 - **Two modes of operation:**
@@ -14,6 +16,8 @@ A Docker-based proxy that exposes WebDAV storage as an S3-compatible interface u
 ## Purpose
 
 This proxy allows accessing WebDAV backends through the S3 protocol. As a developer of an app that can talk to S3 backends, you can access WebDAV servers through the S3 protocol without having to implement and maintain two protocols in your code.
+
+**Note:** So far we have tested it with [ownCloud](https://github.com/owncloud/ocis) and [Nextcloud](https://github.com/nextcloud/server).
 
 ## How It Works
 
@@ -32,11 +36,11 @@ docker build -t jankaritech/s3-webdav-proxy .
 ### Run the container
 
 ```bash
-docker run --rm --network=host \
+docker run --rm -p 8080:8080 \
   -e REMOTE_NAME=<remote-name> \
   -e REMOTE_URL="https://your-webdav-server.com/<webdav-path>" \
   -e REMOTE_VENDOR=<vendor> \
-  -e PROXY_ARGS="--auth-proxy --auth-key ,<secret-key> --no-check-certificate -vv" \
+  -e PROXY_ARGS="--auth-proxy --auth-key ,<secret-key> -vv" \
   jankaritech/s3-webdav-proxy
 ```
 
@@ -44,7 +48,8 @@ The S3-compatible server will be available at `http://localhost:8080`. Access it
 
 > **Note:** 
 > - `<secret-key>` is the **secret key** for SigV4 signature validation (format: `,<secret-key>`).
-> - `--no-check-certificate` disables SSL verification. **Do not use in production** - use a valid certificate instead.
+> - For development/testing with self-signed certificates, add `--no-check-certificate` to `PROXY_ARGS` to disable SSL verification. **Do not use in production** - use a valid certificate instead.
+> - If you want to use a WebDAV server running on localhost, add `--network=host` to the docker run command.
 
 ## Configuration
 
@@ -54,7 +59,7 @@ The S3-compatible server will be available at `http://localhost:8080`. Access it
 |-------------------|----------|----------------------------------------------------------------------------|
 | `REMOTE_NAME`     | Yes      | Name for the rclone remote (e.g., `ocis`)                                  |
 | `REMOTE_URL`      | Yes      | WebDAV server URL                                                          |
-| `REMOTE_VENDOR`   | Yes      | WebDAV vendor (`owncloud`, `nextcloud`, `webdav`, etc.)                    |
+| `REMOTE_VENDOR`   | Yes      | WebDAV vendor (Tested vendors are nextcloud and owncloud.)                    |
 | `PROXY_ARGS`      | No       | Additional rclone arguments                                                |
 | `AUTH_PROXY_PATH` | No       | Path to custom auth-proxy script (default: `/usr/local/bin/auth-proxy.py`) |
 
@@ -115,11 +120,10 @@ Omit `--auth-proxy` to enable anonymous access to a single static WebDAV remote.
 **1. Start the proxy:**
 
 ```bash
-docker run --rm --network=host \
+docker run --rm -p 8080:8080 \
   -e REMOTE_NAME=<remote-name> \
   -e REMOTE_URL="https://your-server.com/<public-webdav-path>" \
   -e REMOTE_VENDOR=<vendor> \
-  -e PROXY_ARGS="--no-check-certificate" \
   jankaritech/s3-webdav-proxy
 ```
 
@@ -144,7 +148,7 @@ The auth-proxy script enables dynamic backend configuration per request. You can
 Mount your custom script over the bundled one:
 
 ```bash
-docker run --rm --network=host \
+docker run --rm -p 8080:8080 \
   -e REMOTE_NAME=<remote-name> \
   -e REMOTE_URL="https://your-server.com/<webdav-path>" \
   -e REMOTE_VENDOR=<vendor> \
@@ -158,7 +162,7 @@ docker run --rm --network=host \
 Use a custom path with `AUTH_PROXY_PATH`:
 
 ```bash
-docker run --rm --network=host \
+docker run --rm -p 8080:8080 \
   -e REMOTE_NAME=<remote-name> \
   -e REMOTE_URL="https://your-server.com/<webdav-path>" \
   -e REMOTE_VENDOR=<vendor> \
@@ -192,77 +196,58 @@ Example implementation (`auth-proxy.py`):
 
 See [docker/auth-proxy.py](docker/auth-proxy.py) for the complete example implementation.
 
-## Example: OwnCloud OCIS Setup
+## Example: Nextcloud Setup
 
 ### Prerequisites
 
-1. Start OCIS server (ocis binary is used here for demonstration, but you can use your own OCIS setup):
-   ```bash
-   OCIS_LOG_LEVEL=debug IDM_CREATE_DEMO_USERS=true \
-   OCIS_INSECURE=true ./ocis/bin/ocis server
-   ```
+1. Start Nextcloud server (or use your existing Nextcloud instance)
 
-2. Get an access token from OCIS:
+2. Get an access token from Nextcloud:
 
-   **Option A: Using browser (simplest)**
-   - Log in to OCIS web interface with your credentials
-   - Open browser DevTools (F12) → Network tab
-   - Make any request to OCIS
-   - Find the request with `Authorization: Bearer <token>` header
-   - Copy the bearer token
-
-   **Option B: Using app-password (Nextcloud only)**
+   **Using app-password**
    - Go to Personal Settings → Security
    - Generate a new app password
    - Use the app password as your bearer token
 
-   **Option C: Using oauth2 (advanced)**
-   - Install oauth2 app in OCIS
-   - Create oauth2 client with redirect URL `http://localhost:9876/`
-   - Create a JSON file `oauth.json` with the client credentials:
-     ```json
-     {
-       "installed": {
-         "client_id": "<client-id-copied-from-oauth2-app>",
-         "auth_uri": "<server-root>/index.php/apps/oauth2/authorize",
-         "token_uri": "<server-root>/index.php/apps/oauth2/api/v1/token",
-         "client_secret": "<client-secret-copied-from-oauth2-app>",
-         "redirect_uris": ["http://localhost:9876"]
-       }
-     }
-     ```
-   - Use [oauth2l](https://github.com/google/oauth2l) to fetch token:
-     ```bash
-     ./oauth2l fetch --credentials oauth.json --scope all --refresh --output_format bare
-     ```
+### Configuration
 
-### Per-User Access
+- `REMOTE_NAME=nextcloud`
+- `REMOTE_URL=https://your-nextcloud.com/remote.php/webdav` (for per-user access)
+- `REMOTE_VENDOR=nextcloud`
+
+> **Note:** For per-user access, you can use the simpler `/remote.php/webdav` endpoint since authentication is handled by the auth-proxy. For anonymous public access, you must use `/public.php/dav/files/<share-token>/` format since the share token needs to be embedded in the URL.
+
+### Per-User Access Example
 
 ```bash
-docker run --rm --network=host \
-  -e REMOTE_NAME=ocis \
-  -e REMOTE_URL="https://localhost:9200/remote.php/webdav" \
-  -e REMOTE_VENDOR=owncloud \
-  -e PROXY_ARGS="--auth-proxy --auth-key ,12345678 --no-check-certificate -vv" \
-  jankaritech/s3-webdav-proxy
+docker run --rm -p 8080:8080 \
+  -e REMOTE_NAME=nextcloud \
+  -e REMOTE_URL="https://your-nextcloud.com/remote.php/webdav" \
+  -e REMOTE_VENDOR=nextcloud \
+  -e PROXY_ARGS="--auth-proxy --auth-key ,<secret-key> -vv" \
+  jankari/rclone-webdav-proxy
 ```
 
 ```bash
-mc alias set myproxy http://localhost:8080 <your-ocis-access-token> 12345678
+mc alias set myproxy http://localhost:8080 <your-nextcloud-app-password> <secret-key>
 mc ls myproxy
 ```
 
-### Anonymous Public Access
+### Anonymous Public Access Example
 
-1. Create a public link in OCIS
-2. Use the unique ID from the public link:
+1. Create a public share in Nextcloud
+2. Use the share token in the URL:
+
+   > **Note:** The share token is the part after `/s/` in your Nextcloud share link.  
+   > For example, if your share link is `https://nextcloud.local/index.php/s/sXtwtoMdjcWwk85`,  
+   > then your share token is `sXtwtoMdjcWwk85`.  
+   > **Note:** For anonymous public access, the share token must be embedded in the URL using the `/public.php/dav/files/<share-token>/` format. This differs from per-user access which can use the simpler `/remote.php/webdav` endpoint.
 
 ```bash
-docker run --rm --network=host \
-  -e REMOTE_NAME=ocis \
-  -e REMOTE_URL="https://localhost:9200/dav/public-files/A1b2C3d4E5f6G7h8I9j0" \
-  -e REMOTE_VENDOR=owncloud \
-  -e PROXY_ARGS="--no-check-certificate" \
+docker run --rm -p 8080:8080 \
+  -e REMOTE_NAME=nextcloud \
+  -e REMOTE_URL="https://your-nextcloud.com/public.php/dav/files/<share-token>/" \
+  -e REMOTE_VENDOR=nextcloud \
   jankaritech/s3-webdav-proxy
 ```
 
