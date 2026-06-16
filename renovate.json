@@ -1,0 +1,19 @@
+{
+  "extends": ["config:recommended", "docker:pinDigests"],
+  "packageRules": [
+    {
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["rclone/rclone"],
+      "automerge": false,
+      "schedule": ["before 8am on monday"],
+      "labels": ["dependencies", "docker", "rclone"]
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["alpine"],
+      "automerge": false,
+      "schedule": ["before 8am on monday"],
+      "labels": ["dependencies", "docker", "alpine"]
+    }
+  ]
+}
