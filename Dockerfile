@@ -1,7 +1,7 @@
 FROM rclone/rclone:1.74.2@sha256:9ce0d49b611d3781233e25334e9e23d7af01e5546da7087f90d55f034ef13637 AS binaries
 
 # final image
-FROM alpine:3.21@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 
 # copy the rclone binary from the official image
 COPY --from=binaries /usr/local/bin/rclone /usr/local/bin/rclone
