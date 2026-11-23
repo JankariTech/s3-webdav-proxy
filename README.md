@@ -36,20 +36,21 @@ docker build -t jankaritech/s3-webdav-proxy .
 ### Run the container
 
 ```bash
-docker run --rm -p 8080:8080 \
+docker run --rm --network=host \
   -e REMOTE_NAME=<remote-name> \
   -e REMOTE_URL="https://your-webdav-server.com/<webdav-path>" \
   -e REMOTE_VENDOR=<vendor> \
-  -e PROXY_ARGS="--auth-proxy --auth-key ,<secret-key> -vv" \
+  -e S3_SECRET_KEY="<secret-key>" \
+  -e PROXY_ARGS="--auth-proxy" \
   jankaritech/s3-webdav-proxy
 ```
 
 The S3-compatible server will be available at `http://localhost:8080`. Access it using an S3 client (e.g., `mc`).
 
 > **Note:** 
-> - `<secret-key>` is the **secret key** for SigV4 signature validation (format: `,<secret-key>`).
+> - `<secret-key>` is the shared **secret key** for SigV4 signature validation. Use a strong, randomly generated secret.
 > - For development/testing with self-signed certificates, add `--no-check-certificate` to `PROXY_ARGS` to disable SSL verification. **Do not use in production** - use a valid certificate instead.
-> - If you want to use a WebDAV server running on localhost, add `--network=host` to the docker run command.
+> - These examples use host networking on Linux. Rclone defaults to listening on `127.0.0.1:8080`.
 
 ## Configuration
 
@@ -62,6 +63,7 @@ The S3-compatible server will be available at `http://localhost:8080`. Access it
 | `REMOTE_VENDOR`   | Yes      | WebDAV vendor (Tested vendors are nextcloud and owncloud.)                    |
 | `PROXY_ARGS`      | No       | Additional rclone arguments                                                |
 | `AUTH_PROXY_PATH` | No       | Path to custom auth-proxy script (default: `/usr/local/bin/auth-proxy.py`) |
+| `S3_SECRET_KEY`   | Per-user | Shared SigV4 signing secret returned by the bundled auth-proxy script; must not be empty |
 
 ### PROXY_ARGS Options
 
@@ -70,7 +72,7 @@ Common rclone options for `serve s3`:
 | Option                                | Description                                                                                                                                         |
 |---------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
 | `--auth-proxy <path>`                 | Enable per-user authentication (see modes below)                                                                                                    |
-| `--auth-key <access-key-id>,<secret>` | Validate SigV4 signatures with fixed secret (wildcard access key)                                                                                   |
+| `--auth-key <access-key-id>,<secret>` | Validate SigV4 signatures in non-proxy mode; ignored by rclone when `--auth-proxy` is enabled                                                       |
 | `--no-check-certificate`              | Disable SSL certificate verification                                                                                                                |
 | `-vv`                                 | Verbose logging (debug level)                                                                                                                       |
 | `--vfs-cache-max-age`                 | Max time since last access of objects in the cache (default 1h0m0s)                                                                                 |
@@ -105,7 +107,12 @@ mc alias set myproxy http://localhost:8080 <access-token> <secret-key>
 ```
 
 - `<access-token>`: Your WebDAV access token
-- `<secret-key>`: The secret key (must match the value specified in `--auth-key ,<secret-key>`)
+- `<secret-key>`: The secret key (must match `S3_SECRET_KEY` on the proxy)
+
+With rclone 1.75.1, replace the old `--auth-key ,<secret-key>` option with
+`S3_SECRET_KEY`; rclone ignores `--auth-key` in auth-proxy mode. The bundled
+script requires this variable; startup fails if it is missing or empty when
+using the default auth-proxy configuration.
 
 **3. Access your files:**
 
@@ -120,7 +127,7 @@ Omit `--auth-proxy` to enable anonymous access to a single static WebDAV remote.
 **1. Start the proxy:**
 
 ```bash
-docker run --rm -p 8080:8080 \
+docker run --rm --network=host \
   -e REMOTE_NAME=<remote-name> \
   -e REMOTE_URL="https://your-server.com/<public-webdav-path>" \
   -e REMOTE_VENDOR=<vendor> \
@@ -148,11 +155,12 @@ The auth-proxy script enables dynamic backend configuration per request. You can
 Mount your custom script over the bundled one:
 
 ```bash
-docker run --rm -p 8080:8080 \
+docker run --rm --network=host \
   -e REMOTE_NAME=<remote-name> \
   -e REMOTE_URL="https://your-server.com/<webdav-path>" \
   -e REMOTE_VENDOR=<vendor> \
-  -e PROXY_ARGS="--auth-proxy --auth-key ,<secret-key>" \
+  -e PROXY_ARGS="--auth-proxy" \
+  -e AUTH_PROXY_PATH="/usr/local/bin/auth-proxy.py" \
   -v /path/to/custom-auth-proxy.py:/usr/local/bin/auth-proxy.py \
   jankaritech/s3-webdav-proxy
 ```
@@ -162,11 +170,11 @@ docker run --rm -p 8080:8080 \
 Use a custom path with `AUTH_PROXY_PATH`:
 
 ```bash
-docker run --rm -p 8080:8080 \
+docker run --rm --network=host \
   -e REMOTE_NAME=<remote-name> \
   -e REMOTE_URL="https://your-server.com/<webdav-path>" \
   -e REMOTE_VENDOR=<vendor> \
-  -e PROXY_ARGS="--auth-proxy --auth-key ,<secret-key>" \
+  -e PROXY_ARGS="--auth-proxy" \
   -e AUTH_PROXY_PATH="/my/custom/script.py" \
   -v /my/custom/script.py:/my/custom/script.py \
   jankaritech/s3-webdav-proxy
@@ -176,17 +184,20 @@ docker run --rm -p 8080:8080 \
 
 The auth-proxy script must:
 
-1. **Read from stdin**: JSON with user credentials
+1. **Read from stdin**: JSON with the S3 access key ID in `user`
    ```json
-   {"pass": "<bearer_token>", "user": "<access-key-id>"}
+   {"user": "<access-key-id>", "client_ip": "127.0.0.1"}
    ```
 
-2. **Write to stdout**: JSON with WebDAV backend config
+2. **Write to stdout**: JSON with WebDAV backend config and the secret used to
+   verify the S3 signature. The bundled script uses the access key ID as the
+   bearer token and `S3_SECRET_KEY` as the shared secret.
    ```json
    {
      "type": "webdav",
      "_root": "",
-     "bearer_token": "<bearer_token>",
+     "_secret_access_key": "<secret-key>",
+     "bearer_token": "<access-key-id>",
      "url": "https://server.com/remote.php/webdav",
      "vendor": "owncloud"
    }
@@ -195,6 +206,10 @@ The auth-proxy script must:
 Example implementation (`auth-proxy.py`):
 
 See [docker/auth-proxy.py](docker/auth-proxy.py) for the complete example implementation.
+Custom scripts must supply `_secret_access_key` themselves; `S3_SECRET_KEY`
+is specific to the bundled script. Set `AUTH_PROXY_PATH` explicitly when
+using a custom script, including when mounting it over the default path. See
+the [rclone auth-proxy documentation](https://rclone.org/commands/rclone_serve_s3/#auth-proxy).
 
 ## Example: Nextcloud Setup
 
@@ -220,12 +235,13 @@ See [docker/auth-proxy.py](docker/auth-proxy.py) for the complete example implem
 ### Per-User Access Example
 
 ```bash
-docker run --rm -p 8080:8080 \
+docker run --rm --network=host \
   -e REMOTE_NAME=nextcloud \
   -e REMOTE_URL="https://your-nextcloud.com/remote.php/webdav" \
   -e REMOTE_VENDOR=nextcloud \
-  -e PROXY_ARGS="--auth-proxy --auth-key ,<secret-key> -vv" \
-  jankari/rclone-webdav-proxy
+  -e S3_SECRET_KEY="<secret-key>" \
+  -e PROXY_ARGS="--auth-proxy" \
+  jankaritech/s3-webdav-proxy
 ```
 
 ```bash
@@ -244,7 +260,7 @@ mc ls myproxy
    > **Note:** For anonymous public access, the share token must be embedded in the URL using the `/public.php/dav/files/<share-token>/` format. This differs from per-user access which can use the simpler `/remote.php/webdav` endpoint.
 
 ```bash
-docker run --rm -p 8080:8080 \
+docker run --rm --network=host \
   -e REMOTE_NAME=nextcloud \
   -e REMOTE_URL="https://your-nextcloud.com/public.php/dav/files/<share-token>/" \
   -e REMOTE_VENDOR=nextcloud \
