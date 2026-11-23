@@ -10,6 +10,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Per-user S3 authentication now requires `S3_SECRET_KEY` instead of
+  `--auth-key`, matching rclone 1.75.1's auth-proxy protocol.
+
 ### Fixed
+
+- Restore per-user WebDAV access with rclone 1.75.1.
 
 ### Security

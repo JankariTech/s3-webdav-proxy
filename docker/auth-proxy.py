@@ -12,16 +12,25 @@ def main():
     i = json.load(sys.stdin)
     url = os.getenv("REMOTE_URL")
     vendor = os.getenv("REMOTE_VENDOR")
+    secret = os.getenv("S3_SECRET_KEY")
     if not url:
         print("REMOTE_URL is not set", file=sys.stderr)
         sys.exit(1)
     if not vendor:
         print("REMOTE_VENDOR is not set", file=sys.stderr)
         sys.exit(1)
+    if not secret:
+        print("S3_SECRET_KEY is not set", file=sys.stderr)
+        sys.exit(1)
+    access_key = i.get("user")
+    if not isinstance(access_key, str) or not access_key:
+        print("S3 access key ID is missing or invalid", file=sys.stderr)
+        sys.exit(1)
     o = {
         "type": "webdav",
         "_root": "",
-        "bearer_token": i["pass"],
+        "_secret_access_key": secret,
+        "bearer_token": access_key,
         "url": url,
         "vendor": vendor,
     }
